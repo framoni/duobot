@@ -1,0 +1,24 @@
+brotlipy==0.7.0
+certifi==2020.6.20
+cffi @ file:///opt/concourse/worker/volumes/live/7232682c-ed09-452c-5a23-d23e8506f71f/volume/cffi_1596809958572/work
+chardet==3.0.4
+cryptography==2.9.2
+fuzzywuzzy==0.18.0
+googletrans==3.0.0
+h11==0.9.0
+h2==3.2.0
+hpack==3.0.0
+hstspreload==2020.8.18
+httpcore==0.9.1
+httpx==0.13.3
+hyperframe==5.2.0
+idna @ file:///tmp/build/80754af9/idna_1593446292537/work
+pycparser @ file:///tmp/build/80754af9/pycparser_1594388511720/work
+pyOpenSSL @ file:///tmp/build/80754af9/pyopenssl_1594392929924/work
+PySocks @ file:///opt/concourse/worker/volumes/live/85a5b906-0e08-41d9-6f59-084cee4e9492/volume/pysocks_1594394636991/work
+python-Levenshtein==0.12.0
+rfc3986==1.4.0
+selenium @ file:///opt/concourse/worker/volumes/live/f54cbba5-7632-4bae-5fbd-3ec06aa93a51/volume/selenium_1594416153038/work
+six==1.15.0
+sniffio==1.1.0
+urllib3 @ file:///tmp/build/80754af9/urllib3_1597086586889/work
