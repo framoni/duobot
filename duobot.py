@@ -8,7 +8,7 @@ Author: Francesco Ramoni
 
 import argparse
 from fuzzywuzzy import fuzz
-from googletrans import Translator
+import translators as ts
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import time
@@ -20,6 +20,10 @@ parser.add_argument('-p', '--password', help="Your account password", required=T
 parser.add_argument('-l', '--headless', action="store_true", help="Whether to run in headless mode")
 
 args = parser.parse_args()
+
+# initialize translators
+
+# _ = ts.preaccelerate_and_speedtest()
 
 class Duobot:
 
@@ -39,9 +43,6 @@ class Duobot:
         # initialize webdriver
         self.browser = webdriver.Chrome(options=options)
         self.browser.implicitly_wait(30)
-
-        # initialize translator
-        self.translator = Translator()
 
         # status variables
         self.loggedin = False
@@ -73,20 +74,39 @@ class Duobot:
 
         self.browser.get(self.practice_url)
 
-        # parse the type of challenge
-        header_text = self.browser.find_element(By.XPATH, "//h1[@data-test='challenge-header']").text
+        while 1:
 
-        # translation challenge
-        if header_text == "Select the correct meaning":
-            question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
-            options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
+            # parse the type of challenge
+            header_text = self.browser.find_element(By.XPATH, "//h1[@data-test='challenge-header']").text
 
-            translation = self.translator.translate(question_text, src="en", dest="zh")
+            # translation challenge
+            if header_text == "Select the correct meaning":
 
-            # determine index of option to click -> answer_idx
+                question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
+                options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
+                translation = ts.translate_text(question_text, translator='google', from_language='en', to_language='zh')
+                choice = [idx for idx, it in enumerate(options) if it.text == translation]
+                if len(choice) == 1:
+                    # translation appears in the options
+                    options[choice[0]].click()
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+                else:
+                    # translation doesn't correspond to any of the options
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
+                # after being notified about the result, click on the "Continue" button
+                self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
-            options[answer_idx].click()
-            self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+            elif header_text=="Write this in English":
+
+                question_text = self.browser.find_element(By.XPATH, "//div[@lang='zh']").text
+                translation = ts.translate_text(question_text, translator='google', from_language='zh',
+                                                to_language='en')
+
+                # find the word buttons, extract the words
+                # pick one by one the buttons that compose the translation
+                # hit ok
+                
+                pass
 
 
 if __name__ == "__main__":
