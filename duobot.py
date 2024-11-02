@@ -7,13 +7,10 @@ Author: Francesco Ramoni
 """
 
 import argparse
-from fuzzywuzzy import fuzz
-import re
-import translators as ts
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-import time
 
+from solver import Solver
 
 parser = argparse.ArgumentParser(description='A Python bot to farm XP on Duolingo in timed practice mode')
 parser.add_argument('-u', '--username', help="Your account username", required=True)
@@ -22,9 +19,6 @@ parser.add_argument('-l', '--headless', action="store_true", help="Whether to ru
 
 args = parser.parse_args()
 
-# initialize translators
-
-# _ = ts.preaccelerate_and_speedtest()
 
 class Duobot:
 
@@ -36,14 +30,13 @@ class Duobot:
         options = webdriver.ChromeOptions()
         if args.headless:
             options.add_argument('headless')
-            options.add_argument("--mute-audio")
-        # request header
-        # user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
-        # options.add_argument(f'user-agent={user_agent}')
+            options.add_argument("--mute-audio")  # is this necessary?
 
         # initialize webdriver
         self.browser = webdriver.Chrome(options=options)
         self.browser.implicitly_wait(30)
+
+        self.solver = Solver(browser=self.browser)
 
         # status variables
         self.loggedin = False
@@ -69,12 +62,6 @@ class Duobot:
 
         print("Successfully logged in.")
 
-    @staticmethod
-    def extract_hanzi(text):
-        # match and return Chinese characters from text
-        chinese_characters = re.findall(r'[\u4e00-\u9fff]', text)
-        return ''.join(chinese_characters)
-
     def practice(self):
         if not self.loggedin:
             print("duobot has not logged in to the Duolingo web app. Log in first.")
@@ -88,54 +75,14 @@ class Duobot:
 
             # translation challenge
             if header_text == "Select the correct meaning":
+                self.solver.translation()
 
-                question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
-                options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
-                translation = ts.translate_text(question_text, translator='google', from_language='en',
-                                                to_language='zh')
-                choice = [idx for idx, it in enumerate(options) if self.extract_hanzi(it.text) == translation]
-                if len(choice) == 1:
-                    # translation appears in the options
-                    options[choice[0]].click()
-                    self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
-                else:
-                    # translation doesn't correspond to any of the options
-                    self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
-
-            # sentence composition challenge
+            # sentence composition challenges
             elif header_text=="Write this in English":
+                self.solver.composition('zh', 'en')
 
-                question_text = self.extract_hanzi(
-                    self.browser.find_element(By.XPATH, "//div[@lang='zh']").text
-                )
-                translation = ts.translate_text(question_text, translator='google', from_language='zh',
-                                                to_language='en')
-
-                # find the word buttons, extract the words
-                # pick one by one the buttons that compose the translation
-                # hit ok
-
-                challenge_buttons = self.browser.find_elements(By.XPATH, "//button[@lang='en'")
-
-                # split translation in tokens
-                skip = False
-                for token in translation.split(" "):
-                    # convert to lower case
-                    token = token.lower()
-                    # search for a button with the same text as the token
-                    choice = [idx for idx, it in enumerate(challenge_buttons) if it.text == token]
-                    if len(choice) == 1:
-                        options[choice[0]].click()
-                    else:
-                        # can't complete the sentence with the found translation: skip exercise
-                        skip = True
-                        break
-
-                # submit answer or skip
-                if skip:
-                    self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
-                else:
-                    self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+            elif header_text == "Write this in Chinese":
+                self.solver.composition('en', 'zh')
 
             # listening challenge
             elif header_text=="Tap what you hear":
