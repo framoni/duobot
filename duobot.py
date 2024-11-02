@@ -8,6 +8,7 @@ Author: Francesco Ramoni
 
 import argparse
 from fuzzywuzzy import fuzz
+import re
 import translators as ts
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -68,6 +69,12 @@ class Duobot:
 
         print("Successfully logged in.")
 
+    @staticmethod
+    def extract_hanzi(text):
+        # match and return Chinese characters from text
+        chinese_characters = re.findall(r'[\u4e00-\u9fff]', text)
+        return ''.join(chinese_characters)
+
     def practice(self):
         if not self.loggedin:
             print("duobot has not logged in to the Duolingo web app. Log in first.")
@@ -84,8 +91,9 @@ class Duobot:
 
                 question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
                 options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
-                translation = ts.translate_text(question_text, translator='google', from_language='en', to_language='zh')
-                choice = [idx for idx, it in enumerate(options) if it.text == translation]
+                translation = ts.translate_text(question_text, translator='google', from_language='en',
+                                                to_language='zh')
+                choice = [idx for idx, it in enumerate(options) if self.extract_hanzi(it.text) == translation]
                 if len(choice) == 1:
                     # translation appears in the options
                     options[choice[0]].click()
@@ -93,20 +101,50 @@ class Duobot:
                 else:
                     # translation doesn't correspond to any of the options
                     self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
-                # after being notified about the result, click on the "Continue" button
-                self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
+            # sentence composition challenge
             elif header_text=="Write this in English":
 
-                question_text = self.browser.find_element(By.XPATH, "//div[@lang='zh']").text
+                question_text = self.extract_hanzi(
+                    self.browser.find_element(By.XPATH, "//div[@lang='zh']").text
+                )
                 translation = ts.translate_text(question_text, translator='google', from_language='zh',
                                                 to_language='en')
 
                 # find the word buttons, extract the words
                 # pick one by one the buttons that compose the translation
                 # hit ok
-                
-                pass
+
+                challenge_buttons = self.browser.find_elements(By.XPATH, "//button[@lang='en'")
+
+                # split translation in tokens
+                skip = False
+                for token in translation.split(" "):
+                    # convert to lower case
+                    token = token.lower()
+                    # search for a button with the same text as the token
+                    choice = [idx for idx, it in enumerate(challenge_buttons) if it.text == token]
+                    if len(choice) == 1:
+                        options[choice[0]].click()
+                    else:
+                        # can't complete the sentence with the found translation: skip exercise
+                        skip = True
+                        break
+
+                # submit answer or skip
+                if skip:
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
+                else:
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+
+            # listening challenge
+            elif header_text=="Tap what you hear":
+
+                # skip this challenge for now
+                self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
+
+            # after being notified about the result, click on the "Continue" button
+            self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
 
 if __name__ == "__main__":
