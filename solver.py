@@ -18,8 +18,8 @@ class Solver:
 
     @staticmethod
     def extract_hanzi(text):
-        # match and return Chinese characters from text
-        chinese_characters = re.findall(r'[\u4e00-\u9fff]', text)
+        # match Chinese characters and spaces
+        chinese_characters = re.findall(r'[\u4e00-\u9fff ]', text)
         return ''.join(chinese_characters)
 
     def append_solution(self, question_text, solution):
@@ -27,6 +27,18 @@ class Solver:
 
         with open("data/solutions.json", "w") as f:
             f.write(json.dumps(self.solutions))
+
+    def check_solution(self, question_text):
+        # check if solution is wrong
+        blame_text = self.browser.find_element(
+            By.XPATH, "//div[contains(@data-test, 'blame blame-')]"
+        ).text
+        if blame_text.split("\n")[0] == "Correct solution:":
+            solution = blame_text.split("\n")[1]
+            # remove anything but letters and whitespaces
+            solution = re.sub(r'[^a-zA-Z\u4e00-\u9fff ]', '', solution)
+            # save the solution for future use
+            self.append_solution(question_text, solution)
 
     def translation(self):
 
@@ -43,17 +55,20 @@ class Solver:
             # translation doesn't correspond to any of the options
             self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
 
+        # check solution
+        self.check_solution(question_text)
+
     def composition(self, from_language, to_language):
 
         question_text = self.browser.find_element(By.XPATH, "//div[@lang='{}']".format(from_language)).text
+        if from_language == 'zh':  # remove pinyin
+            question_text = self.extract_hanzi(question_text)
 
         # check if a solution was already stored
         if question_text in self.solutions["zh(en)"]:
             translation = self.solutions["zh(en)"][question_text]
         # if not, translate
         else:
-            if from_language == 'zh':  # remove pinyin
-                question_text = self.extract_hanzi(question_text)
             translation = ts.translate_text(question_text, translator='google', from_language=from_language,
                                             to_language=to_language)
 
@@ -71,10 +86,5 @@ class Solver:
         # submit answer
         self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
-        # check if solution is wrong
-        solution = self.browser.find_element(
-            By.XPATH, "//div[@data-test='blame blame-incorrect']"
-        ).text.split("\n")[1]
-        if solution:
-            # save the solution for future use
-            self.append_solution(question_text, solution)
+        # check solution
+        self.check_solution(question_text)
