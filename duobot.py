@@ -9,8 +9,8 @@ Author: Francesco Ramoni
 import argparse
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-
 from solver import Solver
+import time
 
 parser = argparse.ArgumentParser(description='A Python bot to farm XP on Duolingo in timed practice mode')
 parser.add_argument('-u', '--username', help="Your account username", required=True)
@@ -68,6 +68,9 @@ class Duobot:
 
         self.browser.get(self.practice_url)
 
+        # hide pinyin
+        self.solver.hide_pinyin()
+
         while 1:
 
             # parse the type of challenge
@@ -90,8 +93,14 @@ class Duobot:
                 # skip this challenge for now
                 self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
 
+            # pause
+            time.sleep(2)
+
             # after being notified about the result, click on the "Continue" button
             self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+
+            # pause again
+            time.sleep(2)
 
 
 if __name__ == "__main__":

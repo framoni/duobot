@@ -16,11 +16,13 @@ class Solver:
         with open("data/solutions.json", "r") as f:
             self.solutions = json.loads(f.read())
 
-    @staticmethod
-    def extract_hanzi(text):
-        # match Chinese characters and spaces
-        chinese_characters = re.findall(r'[\u4e00-\u9fff ]', text)
-        return ''.join(chinese_characters)
+    def hide_pinyin(self):
+        # press "Settings" button
+        self.browser.find_element(By.XPATH, "//button[@class='_2VEsk bafGS _2LoNU VzbUl _1saKQ _1AgKJ']").click()
+        # deselect "Show pronunciation"
+        self.browser.find_element(By.XPATH, "//button[@aria-pressed='true']").click()
+        # close the settings window
+        self.browser.find_element(By.XPATH, "//span[text()='Done']").click()
 
     def append_solution(self, question_text, solution):
         self.solutions["zh(en)"][question_text] = solution
@@ -46,7 +48,7 @@ class Solver:
         options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
         translation = ts.translate_text(question_text, translator='google', from_language='en',
                                         to_language='zh')
-        choice = [idx for idx, it in enumerate(options) if self.extract_hanzi(it.text) == translation]
+        choice = [idx for idx, it in enumerate(options) if it.text == translation]
         if len(choice) == 1:
             # translation appears in the options
             options[choice[0]].click()
@@ -61,8 +63,6 @@ class Solver:
     def composition(self, from_language, to_language):
 
         question_text = self.browser.find_element(By.XPATH, "//div[@lang='{}']".format(from_language)).text
-        if from_language == 'zh':  # remove pinyin
-            question_text = self.extract_hanzi(question_text)
 
         # check if a solution was already stored
         if question_text in self.solutions["zh(en)"]:
@@ -75,6 +75,7 @@ class Solver:
         challenge_buttons = self.browser.find_elements(By.XPATH, "//button[@lang='{}']".format(to_language))
 
         # split translation in tokens
+        pressed_buttons = 0
         for token in translation.split(" "):
             # convert to lower case
             token = token.lower()
@@ -82,6 +83,11 @@ class Solver:
             choice = [idx for idx, it in enumerate(challenge_buttons) if it.text.lower() == token]
             if len(choice) == 1:
                 challenge_buttons[choice[0]].click()
+                pressed_buttons += 1
+
+        # if no buttons were pressed, press a random one (this is needed to proceed with the practice)
+        if pressed_buttons == 0:
+            challenge_buttons[0].click()
 
         # submit answer
         self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
