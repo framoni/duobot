@@ -8,6 +8,7 @@ Author: Francesco Ramoni
 
 import argparse
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from solver import Solver
 import time
@@ -19,6 +20,8 @@ parser.add_argument('-l', '--headless', action="store_true", help="Whether to ru
 
 args = parser.parse_args()
 
+IMPLICIT_WAIT_START = 30
+IMPLICIT_WAIT_PRACTICE = 10
 
 class Duobot:
 
@@ -34,7 +37,7 @@ class Duobot:
 
         # initialize webdriver
         self.browser = webdriver.Chrome(options=options)
-        self.browser.implicitly_wait(30)
+        self.browser.implicitly_wait(IMPLICIT_WAIT_START)
 
         self.solver = Solver(browser=self.browser)
 
@@ -68,6 +71,8 @@ class Duobot:
 
         self.browser.get(self.practice_url)
 
+        self.browser.implicitly_wait(IMPLICIT_WAIT_PRACTICE)
+
         # hide pinyin
         self.solver.hide_pinyin()
 
@@ -76,9 +81,15 @@ class Duobot:
             try:
                 # parse the type of challenge
                 header_text = self.browser.find_element(By.XPATH, "//h1[@data-test='challenge-header']").text
-            except:
-                # practice finished, relaunch it
-                self.browser.find_element(By.XPATH, "//button[@data-test='player-practice-again']").click()
+            except NoSuchElementException:
+                try:
+                    # practice finished, relaunch it
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-practice-again']").click()
+                    continue
+                except NoSuchElementException:
+                    # Duo screen?
+                    self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+                    continue
 
             # translation challenge
             if header_text == "Select the correct meaning":
@@ -93,15 +104,18 @@ class Duobot:
 
             # listening challenge
             elif header_text=="Tap what you hear":
-
                 # skip this challenge for now
                 self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
 
             # pause
             time.sleep(2)
 
-            # after being notified about the result, click on the "Continue" button
-            self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
+            if self.solver.pratice_finished:
+                # relaunch practice
+                self.browser.find_element(By.XPATH, "//button[@data-test='player-practice-again']").click()
+            else:
+                # after being notified about the result, click on the "Continue" button
+                self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
             # pause again
             time.sleep(2)

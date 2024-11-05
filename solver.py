@@ -5,6 +5,7 @@ from recursion import Node
 import translators as ts
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
 
 # initialize translators
 
@@ -14,7 +15,8 @@ class Solver:
 
     def __init__(self, browser: webdriver.Chrome):
         self.browser = browser
-
+        self.pratice_finished = False
+        
         with open("data/solutions.json", "r") as f:
             self.solutions = json.loads(f.read())
 
@@ -34,9 +36,14 @@ class Solver:
 
     def check_solution(self, question_text, to_language='en'):
         # check if solution is wrong
-        blame_text = self.browser.find_element(
-            By.XPATH, "//div[contains(@data-test, 'blame blame-')]"
-        ).text
+        try:
+            blame_text = self.browser.find_element(
+                By.XPATH, "//div[contains(@data-test, 'blame blame-')]"
+            ).text
+        except NoSuchElementException:
+            # practice finished
+            self.pratice_finished = True
+            return
         if blame_text.split("\n")[0] == "Correct solution:":
             if to_language == "zh":
                 solution = re.sub(r'[^\u4e00-\u9fff]', '', blame_text)
