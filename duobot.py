@@ -73,8 +73,12 @@ class Duobot:
 
         while 1:
 
-            # parse the type of challenge
-            header_text = self.browser.find_element(By.XPATH, "//h1[@data-test='challenge-header']").text
+            try:
+                # parse the type of challenge
+                header_text = self.browser.find_element(By.XPATH, "//h1[@data-test='challenge-header']").text
+            except:
+                # practice finished, relaunch it
+                self.browser.find_element(By.XPATH, "//button[@data-test='player-practice-again']").click()
 
             # translation challenge
             if header_text == "Select the correct meaning":
