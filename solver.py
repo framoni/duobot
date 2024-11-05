@@ -16,7 +16,7 @@ class Solver:
     def __init__(self, browser: webdriver.Chrome):
         self.browser = browser
         self.pratice_finished = False
-        
+
         with open("data/solutions.json", "r") as f:
             self.solutions = json.loads(f.read())
 
