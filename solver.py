@@ -1,5 +1,7 @@
+from ast import literal_eval
 import json
 import re
+from recursion import Node
 import translators as ts
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -30,24 +32,47 @@ class Solver:
         with open("data/solutions.json", "w") as f:
             f.write(json.dumps(self.solutions))
 
-    def check_solution(self, question_text):
+    def check_solution(self, question_text, to_language='en'):
         # check if solution is wrong
         blame_text = self.browser.find_element(
             By.XPATH, "//div[contains(@data-test, 'blame blame-')]"
         ).text
         if blame_text.split("\n")[0] == "Correct solution:":
-            solution = blame_text.split("\n")[1]
-            # remove anything but letters and whitespaces
-            solution = re.sub(r'[^a-zA-Z\u4e00-\u9fff ]', '', solution)
+            if to_language == "zh":
+                solution = re.sub(r'[^\u4e00-\u9fff]', '', blame_text)
+            else:
+                solution = blame_text.split("\n")[1]
             # save the solution for future use
             self.append_solution(question_text, solution)
+
+    @staticmethod
+    def assemble(word, tokens):
+        if len(word) == 0:
+            return []
+        for t in tokens:
+            if t == word[:len(t)]:
+                tokens_copy = tokens.copy()
+                tokens_copy.remove(t)
+                return [t] + Solver.assemble(word[len(t):], tokens_copy)
+        return []
+
+    @staticmethod
+    def simplify(word):
+        return re.sub(r'[^a-zA-Z\u4e00-\u9fff]', '', word).lower()
 
     def translation(self):
 
         question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
         options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
-        translation = ts.translate_text(question_text, translator='google', from_language='en',
-                                        to_language='zh')
+
+        # check if a solution was already stored
+        if question_text in self.solutions["zh(en)"]:
+            translation = self.solutions["zh(en)"][question_text]
+        # if not, translate
+        else:
+            translation = ts.translate_text(question_text, translator='google', from_language='en',
+                                            to_language='zh')
+
         choice = [idx for idx, it in enumerate(options) if it.text == translation]
         if len(choice) == 1:
             # translation appears in the options
@@ -72,25 +97,32 @@ class Solver:
             translation = ts.translate_text(question_text, translator='google', from_language=from_language,
                                             to_language=to_language)
 
+        # remove all punctuation and white spaces in both the translation and the buttons' text
+        translation = self.simplify(translation)
+
         challenge_buttons = self.browser.find_elements(By.XPATH, "//button[@lang='{}']".format(to_language))
+        tokens = [self.simplify(button.text) for button in challenge_buttons]
 
-        # split translation in tokens
-        pressed_buttons = 0
-        for token in translation.split(" "):
-            # convert to lower case
-            token = token.lower()
-            # search for a button with the same text as the token
-            choice = [idx for idx, it in enumerate(challenge_buttons) if it.text.lower() == token]
-            if len(choice) == 1:
-                challenge_buttons[choice[0]].click()
-                pressed_buttons += 1
+        with open('composition.log', 'w') as f:
+            f.write('[]')
 
-        # if no buttons were pressed, press a random one (this is needed to proceed with the practice)
-        if pressed_buttons == 0:
+        n = Node(translation, tokens)
+        n.scan_tree(translation)
+
+        with open('composition.log', 'r') as f:
+            chosen_tokens = literal_eval(f.read())
+
+        if len(chosen_tokens) == 0:
             challenge_buttons[0].click()
+        for token in chosen_tokens:
+            for button in challenge_buttons:
+                if self.simplify(button.text) == token:
+                    button.click()
+                    challenge_buttons.remove(button)
+                    break
 
         # submit answer
         self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
 
         # check solution
-        self.check_solution(question_text)
+        self.check_solution(question_text, to_language=to_language)
