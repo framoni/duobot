@@ -30,7 +30,6 @@ class Solver:
 
     def append_solution(self, question_text, solution):
         self.solutions["zh(en)"][question_text] = solution
-
         with open("data/solutions.json", "w") as f:
             f.write(json.dumps(self.solutions))
 
@@ -51,17 +50,6 @@ class Solver:
                 solution = blame_text.split("\n")[1]
             # save the solution for future use
             self.append_solution(question_text, solution)
-
-    @staticmethod
-    def assemble(word, tokens):
-        if len(word) == 0:
-            return []
-        for t in tokens:
-            if t == word[:len(t)]:
-                tokens_copy = tokens.copy()
-                tokens_copy.remove(t)
-                return [t] + Solver.assemble(word[len(t):], tokens_copy)
-        return []
 
     @staticmethod
     def simplify(word):
