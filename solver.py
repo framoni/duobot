@@ -65,10 +65,10 @@ class Solver:
             self.translation(self.params["base_code"], self.params["studied_code"])
 
         # sentence composition challenges
-        elif header_text == "Write this in English":
+        elif header_text == "Write this in {}".format(self.params["base_name"]):
             self.composition(self.params["studied_code"], self.params["base_code"])
 
-        elif header_text == "Write this in Chinese":
+        elif header_text == "Write this in {}".format(self.params["studied_name"]):
             self.composition(self.params["base_code"], self.params["studied_code"])
 
         # listening challenge
