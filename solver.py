@@ -13,12 +13,16 @@ from selenium.common.exceptions import NoSuchElementException
 
 class Solver:
 
-    def __init__(self, browser: webdriver.Chrome):
+    def __init__(self, browser: webdriver.Chrome, course="zh(en)"):
         self.browser = browser
+        self.course = course
         self.pratice_finished = False
 
         with open("data/solutions.json", "r") as f:
             self.solutions = json.loads(f.read())
+
+        with open("data/courses.json", "r") as f:
+            self.params = json.loads(f.read())[self.course]
 
     def hide_pinyin(self):
         # press "Settings" button
@@ -29,7 +33,7 @@ class Solver:
         self.browser.find_element(By.XPATH, "//span[text()='Done']").click()
 
     def append_solution(self, question_text, solution):
-        self.solutions["zh(en)"][question_text] = solution
+        self.solutions[self.course][question_text] = solution
         with open("data/solutions.json", "w") as f:
             f.write(json.dumps(self.solutions))
 
@@ -55,18 +59,35 @@ class Solver:
     def simplify(word):
         return re.sub(r'[^a-zA-Z\u4e00-\u9fff]', '', word).lower()
 
-    def translation(self):
+    def do_challenge(self, header_text):
+        # translation challenge
+        if header_text == "Select the correct meaning":
+            self.translation(self.params["base_code"], self.params["studied_code"])
 
-        question_text = self.browser.find_element(By.XPATH, "//div[@lang='en']").text
+        # sentence composition challenges
+        elif header_text == "Write this in English":
+            self.composition(self.params["studied_code"], self.params["base_code"])
+
+        elif header_text == "Write this in Chinese":
+            self.composition(self.params["base_code"], self.params["studied_code"])
+
+        # listening challenge
+        elif header_text == "Tap what you hear":
+            # skip this challenge for now
+            self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
+
+    def translation(self, from_language, to_language):
+
+        question_text = self.browser.find_element(By.XPATH, "//div[@lang='{}']".format(from_language)).text
         options = self.browser.find_elements(By.XPATH, "//span[@data-test='challenge-judge-text']")
 
         # check if a solution was already stored
-        if question_text in self.solutions["zh(en)"]:
-            translation = self.solutions["zh(en)"][question_text]
+        if question_text in self.solutions[self.course]:
+            translation = self.solutions[self.course][question_text]
         # if not, translate
         else:
-            translation = ts.translate_text(question_text, translator='google', from_language='en',
-                                            to_language='zh')
+            translation = ts.translate_text(question_text, translator='google', from_language=from_language,
+                                            to_language=to_language)
 
         choice = [idx for idx, it in enumerate(options) if it.text == translation]
         if len(choice) == 1:
@@ -85,8 +106,8 @@ class Solver:
         question_text = self.browser.find_element(By.XPATH, "//div[@lang='{}']".format(from_language)).text
 
         # check if a solution was already stored
-        if question_text in self.solutions["zh(en)"]:
-            translation = self.solutions["zh(en)"][question_text]
+        if question_text in self.solutions[self.course]:
+            translation = self.solutions[self.course][question_text]
         # if not, translate
         else:
             translation = ts.translate_text(question_text, translator='google', from_language=from_language,

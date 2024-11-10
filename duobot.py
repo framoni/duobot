@@ -73,8 +73,9 @@ class Duobot:
 
         self.browser.implicitly_wait(IMPLICIT_WAIT_PRACTICE)
 
-        # hide pinyin
-        self.solver.hide_pinyin()
+        if self.solver.course == "zh(en)":
+            # hide pinyin
+            self.solver.hide_pinyin()
 
         while 1:
 
@@ -91,21 +92,7 @@ class Duobot:
                     self.browser.find_element(By.XPATH, "//button[@data-test='player-next']").click()
                     continue
 
-            # translation challenge
-            if header_text == "Select the correct meaning":
-                self.solver.translation()
-
-            # sentence composition challenges
-            elif header_text=="Write this in English":
-                self.solver.composition('zh', 'en')
-
-            elif header_text == "Write this in Chinese":
-                self.solver.composition('en', 'zh')
-
-            # listening challenge
-            elif header_text=="Tap what you hear":
-                # skip this challenge for now
-                self.browser.find_element(By.XPATH, "//button[@data-test='player-skip']").click()
+            self.solver.do_challenge(header_text)
 
             # pause
             time.sleep(2)
